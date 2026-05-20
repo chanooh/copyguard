@@ -30,7 +30,7 @@ Then open:
 http://localhost:3000
 ```
 
-Use a Polymarket wallet address and click **Analyze Wallet**.
+Use a Polymarket wallet address, linked profile address, `@username`, or profile URL and click **Analyze Wallet**.
 
 ## Verify
 

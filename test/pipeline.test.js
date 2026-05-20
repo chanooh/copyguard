@@ -3,9 +3,11 @@ import test from "node:test";
 
 import { analyzeWallet, validateWalletAddress } from "../src/analysis/pipeline.js";
 
-test("validateWalletAddress accepts only EVM-style addresses", () => {
+test("validateWalletAddress accepts wallets and Polymarket profile identifiers", () => {
   assert.equal(validateWalletAddress("0x1234567890abcdef1234567890abcdef12345678"), true);
-  assert.equal(validateWalletAddress("123"), false);
+  assert.equal(validateWalletAddress("@bbxiang"), true);
+  assert.equal(validateWalletAddress("https://polymarket.com/@bbxiang"), true);
+  assert.equal(validateWalletAddress("x"), false);
   assert.equal(validateWalletAddress("0xnothex7890abcdef1234567890abcdef12345678"), false);
 });
 
@@ -28,6 +30,12 @@ test("analyzeWallet returns the full dashboard contract", async () => {
               value: { portfolioValue: 300 },
             },
             sources: [{ key: "positions", ok: true }],
+            resolvedUser: {
+              input: "0x1234567890abcdef1234567890abcdef12345678",
+              queryUser: "0x1234567890abcdef1234567890abcdef12345678",
+              proxyWallet: "0x1234567890abcdef1234567890abcdef12345678",
+              resolution: "direct-address",
+            },
           };
         },
       },
@@ -39,5 +47,5 @@ test("analyzeWallet returns the full dashboard contract", async () => {
   assert.ok(["follow", "watch", "reduce", "avoid"].includes(result.recommendation.decision));
   assert.match(result.receipt.hash, /^0x[a-f0-9]{64}$/);
   assert.equal(result.arc.status, "planned");
+  assert.equal(result.resolvedUser.resolution, "direct-address");
 });
-

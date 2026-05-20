@@ -133,7 +133,8 @@ function renderPositions(positions) {
 
 function renderReceipt(receipt, result) {
   const details = [
-    ["Wallet", result.walletAddress],
+    ["Input", result.walletAddress],
+    ["Resolved wallet", result.resolvedUser?.proxyWallet || result.walletAddress],
     ["Decision", decisionLabel(receipt.decision)],
     ["Max allocation", fmtUsd(receipt.maxAllocationUsdc)],
     ["Hash", receipt.hash],

@@ -69,7 +69,7 @@ test("normalizeClosedPositions and normalizeTrades keep analysis-safe numerics",
         side: "BUY",
         price: "0.45",
         size: "100",
-        timestamp: "2026-05-09T12:00:00.000Z",
+        timestamp: 1778328000,
       },
     ],
   });
@@ -78,6 +78,7 @@ test("normalizeClosedPositions and normalizeTrades keep analysis-safe numerics",
   assert.equal(closed[0].win, false);
   assert.equal(trades[0].side, "buy");
   assert.equal(trades[0].value, 45);
+  assert.equal(trades[0].timestamp, "2026-05-09T12:00:00.000Z");
 });
 
 test("normalizeValue accepts number, object, and array responses", () => {
@@ -85,4 +86,3 @@ test("normalizeValue accepts number, object, and array responses", () => {
   assert.deepEqual(normalizeValue({ value: "100.25" }), { portfolioValue: 100.25 });
   assert.deepEqual(normalizeValue([{ value: "55" }]), { portfolioValue: 55 });
 });
-

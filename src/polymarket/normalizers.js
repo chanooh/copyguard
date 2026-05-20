@@ -65,7 +65,7 @@ export function normalizeClosedPositions(payload) {
       cashPnl: pickNumber(raw, ["cashPnl", "pnl", "profit"], realizedPnl),
       value: pickNumber(raw, ["value", "currentValue", "proceeds", "amount"], 0),
       category: normalizeCategory(raw),
-      closedAt: pickString(raw, ["closedAt", "closedTime", "timestamp", "createdAt", "updatedAt", "endDate"], ""),
+      closedAt: pickTimestamp(raw, ["closedAt", "closedTime", "timestamp", "createdAt", "updatedAt", "endDate"]),
       win: realizedPnl > 0,
       raw,
     };
@@ -87,7 +87,7 @@ export function normalizeTrades(payload) {
       price,
       size,
       value,
-      timestamp: pickString(raw, ["timestamp", "createdAt", "created_at", "time"], ""),
+      timestamp: pickTimestamp(raw, ["timestamp", "createdAt", "created_at", "time"]),
       category: normalizeCategory(raw),
       raw,
     };
@@ -100,10 +100,19 @@ export function normalizeActivities(payload) {
     type: normalizeSide(pickString(raw, ["type", "action", "side"], "activity")),
     title: pickString(raw, ["title", "marketTitle", "question", "name"], "Unknown market"),
     value: pickNumber(raw, ["value", "amount", "usdcValue", "collateral"], 0),
-    timestamp: pickString(raw, ["timestamp", "createdAt", "created_at", "time"], ""),
+    timestamp: pickTimestamp(raw, ["timestamp", "createdAt", "created_at", "time"]),
     category: normalizeCategory(raw),
     raw,
   }));
+}
+
+function pickTimestamp(raw, keys) {
+  for (const key of keys) {
+    if (Object.hasOwn(raw, key)) {
+      return normalizeTimestamp(raw[key]);
+    }
+  }
+  return "";
 }
 
 export function normalizeValue(payload) {
@@ -160,3 +169,23 @@ function normalizeCategory(raw) {
   return "uncategorized";
 }
 
+function normalizeTimestamp(value) {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    const millis = value > 10_000_000_000 ? value : value * 1000;
+    return new Date(millis).toISOString();
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (/^\d+$/.test(trimmed)) {
+      const number = Number(trimmed);
+      const millis = number > 10_000_000_000 ? number : number * 1000;
+      return new Date(millis).toISOString();
+    }
+
+    const date = new Date(trimmed);
+    if (!Number.isNaN(date.getTime())) return date.toISOString();
+  }
+
+  return "";
+}

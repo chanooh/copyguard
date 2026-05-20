@@ -4,9 +4,18 @@ import { createRecommendationReceipt } from "./receipt.js";
 import { PolymarketDataClient } from "../polymarket/client.js";
 
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
+const USERNAME_RE = /^@?[a-zA-Z0-9_.-]{2,40}$/;
 
 export function validateWalletAddress(walletAddress) {
-  return typeof walletAddress === "string" && WALLET_RE.test(walletAddress.trim());
+  const value = String(walletAddress || "").trim();
+  if (WALLET_RE.test(value)) return true;
+  if (USERNAME_RE.test(value)) return true;
+  try {
+    const url = new URL(value);
+    return url.hostname.endsWith("polymarket.com");
+  } catch {
+    return false;
+  }
 }
 
 export async function analyzeWallet(input, options = {}) {
@@ -40,6 +49,7 @@ export async function analyzeWallet(input, options = {}) {
     recommendation,
     receipt,
     sources: walletData.sources,
+    resolvedUser: walletData.resolvedUser,
     data: {
       positions: walletData.normalized.positions,
       closedPositions: walletData.normalized.closedPositions,
@@ -52,4 +62,3 @@ export async function analyzeWallet(input, options = {}) {
     },
   };
 }
-
