@@ -1,0 +1,17 @@
+{
+  "name": "copyguard",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Polymarket wallet risk agent for copy-trading allocation decisions.",
+  "scripts": {
+    "dev": "node src/server.js",
+    "start": "node src/server.js",
+    "test": "node --test",
+    "verify": "node --test"
+  },
+  "engines": {
+    "node": ">=18.17"
+  }
+}
+
