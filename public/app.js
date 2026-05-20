@@ -21,7 +21,8 @@ form.addEventListener("submit", async (event) => {
 
     const payload = await response.json();
     if (!response.ok) {
-      throw new Error(payload.error || "Analysis failed.");
+      const detail = payload.detail ? ` ${payload.detail}` : "";
+      throw new Error(`${payload.error || "Analysis failed."}${detail}`);
     }
 
     renderResult(payload);
@@ -210,4 +211,3 @@ function escapeHtml(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
-

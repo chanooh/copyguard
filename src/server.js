@@ -42,6 +42,9 @@ export function createAppServer(options = {}) {
       sendJson(res, 405, { error: "Method not allowed" });
     } catch (error) {
       const statusCode = error.statusCode || 500;
+      if (statusCode >= 500) {
+        console.error("[copyguard] request failed", error);
+      }
       sendJson(res, statusCode, {
         error: statusCode >= 500 ? "CopyGuard could not complete the analysis." : error.message,
         detail: statusCode >= 500 ? error.message : undefined,
