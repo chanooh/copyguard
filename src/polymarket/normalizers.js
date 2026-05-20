@@ -1,0 +1,162 @@
+export function toArray(payload) {
+  if (Array.isArray(payload)) return payload;
+  if (!payload || typeof payload !== "object") return [];
+
+  for (const key of ["data", "positions", "closedPositions", "trades", "activity", "activities", "result", "results"]) {
+    if (Array.isArray(payload[key])) return payload[key];
+  }
+
+  return [];
+}
+
+export function toNumber(value, fallback = 0) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  if (typeof value === "string") {
+    const cleaned = value.replace(/,/g, "").trim();
+    if (cleaned === "") return fallback;
+    const parsed = Number(cleaned);
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  return fallback;
+}
+
+export function normalizePositions(payload) {
+  return toArray(payload).map((raw, index) => {
+    const title = pickString(raw, ["title", "marketTitle", "question", "name"], "Unknown market");
+    const currentValue = pickNumber(raw, ["currentValue", "value", "positionValue", "marketValue", "amount"], 0);
+    const cashPnl = pickNumber(raw, ["cashPnl", "pnl", "profit", "totalPnl"], 0);
+    const realizedPnl = pickNumber(raw, ["realizedPnl", "realized", "realizedProfit"], 0);
+    const unrealizedPnl = pickNumber(raw, ["unrealizedPnl", "unrealized", "cashPnl"], cashPnl - realizedPnl);
+
+    return {
+      id: pickString(raw, ["id", "asset", "assetId", "conditionId", "marketId", "tokenId"], `position-${index}`),
+      title,
+      marketId: pickString(raw, ["marketId", "conditionId", "condition_id", "market"], ""),
+      slug: pickString(raw, ["slug", "marketSlug"], ""),
+      outcome: pickString(raw, ["outcome", "outcomeName", "side", "token"], "Unknown"),
+      currentValue,
+      cashPnl,
+      realizedPnl,
+      unrealizedPnl,
+      size: pickNumber(raw, ["size", "shares", "quantity", "balance"], 0),
+      avgPrice: pickNumber(raw, ["avgPrice", "averagePrice", "average_price"], 0),
+      curPrice: pickNumber(raw, ["curPrice", "price", "currentPrice"], 0),
+      category: normalizeCategory(raw),
+      endDate: pickString(raw, ["endDate", "endDateIso", "end_date"], ""),
+      raw,
+    };
+  });
+}
+
+export function normalizeClosedPositions(payload) {
+  return toArray(payload).map((raw, index) => {
+    const realizedPnl = pickNumber(raw, ["realizedPnl", "cashPnl", "pnl", "profit", "totalPnl"], 0);
+
+    return {
+      id: pickString(raw, ["id", "asset", "assetId", "conditionId", "marketId", "tokenId"], `closed-${index}`),
+      title: pickString(raw, ["title", "marketTitle", "question", "name"], "Unknown market"),
+      marketId: pickString(raw, ["marketId", "conditionId", "condition_id", "market"], ""),
+      outcome: pickString(raw, ["outcome", "outcomeName", "side", "token"], "Unknown"),
+      realizedPnl,
+      cashPnl: pickNumber(raw, ["cashPnl", "pnl", "profit"], realizedPnl),
+      value: pickNumber(raw, ["value", "currentValue", "proceeds", "amount"], 0),
+      category: normalizeCategory(raw),
+      closedAt: pickString(raw, ["closedAt", "closedTime", "timestamp", "createdAt", "updatedAt", "endDate"], ""),
+      win: realizedPnl > 0,
+      raw,
+    };
+  });
+}
+
+export function normalizeTrades(payload) {
+  return toArray(payload).map((raw, index) => {
+    const price = pickNumber(raw, ["price", "avgPrice", "executionPrice"], 0);
+    const size = pickNumber(raw, ["size", "shares", "quantity", "amount"], 0);
+    const value = pickNumber(raw, ["value", "usdcValue", "notional", "collateral"], price * size);
+
+    return {
+      id: pickString(raw, ["id", "transactionHash", "txHash", "hash"], `trade-${index}`),
+      title: pickString(raw, ["title", "marketTitle", "question", "name"], "Unknown market"),
+      marketId: pickString(raw, ["marketId", "conditionId", "condition_id", "market"], ""),
+      outcome: pickString(raw, ["outcome", "outcomeName", "token"], "Unknown"),
+      side: normalizeSide(pickString(raw, ["side", "action", "type"], "")),
+      price,
+      size,
+      value,
+      timestamp: pickString(raw, ["timestamp", "createdAt", "created_at", "time"], ""),
+      category: normalizeCategory(raw),
+      raw,
+    };
+  });
+}
+
+export function normalizeActivities(payload) {
+  return toArray(payload).map((raw, index) => ({
+    id: pickString(raw, ["id", "transactionHash", "txHash", "hash"], `activity-${index}`),
+    type: normalizeSide(pickString(raw, ["type", "action", "side"], "activity")),
+    title: pickString(raw, ["title", "marketTitle", "question", "name"], "Unknown market"),
+    value: pickNumber(raw, ["value", "amount", "usdcValue", "collateral"], 0),
+    timestamp: pickString(raw, ["timestamp", "createdAt", "created_at", "time"], ""),
+    category: normalizeCategory(raw),
+    raw,
+  }));
+}
+
+export function normalizeValue(payload) {
+  if (typeof payload === "number" || typeof payload === "string") {
+    return { portfolioValue: toNumber(payload, 0) };
+  }
+
+  const candidate = Array.isArray(payload) ? payload[0] : payload;
+  if (!candidate || typeof candidate !== "object") {
+    return { portfolioValue: 0 };
+  }
+
+  return {
+    portfolioValue: pickNumber(candidate, ["portfolioValue", "value", "totalValue", "currentValue", "amount"], 0),
+  };
+}
+
+function pickNumber(raw, keys, fallback) {
+  for (const key of keys) {
+    if (Object.hasOwn(raw, key)) {
+      return toNumber(raw[key], fallback);
+    }
+  }
+  return fallback;
+}
+
+function pickString(raw, keys, fallback) {
+  for (const key of keys) {
+    const value = raw?.[key];
+    if (typeof value === "string" && value.trim() !== "") return value;
+    if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  }
+  return fallback;
+}
+
+function normalizeSide(value) {
+  const side = String(value || "").trim().toLowerCase();
+  if (["buy", "bought", "purchase"].includes(side)) return "buy";
+  if (["sell", "sold", "redeem"].includes(side)) return "sell";
+  if (["merge", "split", "claim"].includes(side)) return side;
+  return side || "unknown";
+}
+
+function normalizeCategory(raw) {
+  const direct = raw?.category || raw?.categoryName || raw?.eventCategory;
+  if (typeof direct === "string" && direct.trim() !== "") return direct.trim().toLowerCase();
+
+  const tags = raw?.tags || raw?.tag;
+  if (Array.isArray(tags) && tags.length > 0) {
+    const tag = typeof tags[0] === "string" ? tags[0] : tags[0]?.label || tags[0]?.name;
+    if (tag) return String(tag).trim().toLowerCase();
+  }
+
+  return "uncategorized";
+}
+
