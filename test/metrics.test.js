@@ -93,3 +93,20 @@ test("computeWalletMetrics handles empty wallets without NaN scores", () => {
   assert.equal(Number.isNaN(metrics.winRate), false);
 });
 
+test("computeWalletMetrics does not invent drawdown when only positive realized PnL is present", () => {
+  const metrics = computeWalletMetrics(
+    {
+      positions: [],
+      closedPositions: [
+        { id: "c1", realizedPnl: 250, category: "macro", closedAt: "2026-05-10T00:00:00.000Z" },
+      ],
+      trades: [],
+      activities: [],
+      value: { portfolioValue: 0 },
+    },
+    { asOf },
+  );
+
+  assert.equal(metrics.drawdownEstimate, 0);
+  assert.ok(metrics.riskScore < 75);
+});

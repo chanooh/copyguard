@@ -119,6 +119,8 @@ function round(value, places = 2) {
 
 function formatUsd(value) {
   const sign = value < 0 ? "-" : "";
-  return `${sign}$${Math.abs(value).toFixed(2)}`;
+  return `${sign}$${Math.abs(value).toLocaleString(undefined, {
+    maximumFractionDigits: 2,
+    minimumFractionDigits: 2,
+  })}`;
 }
-

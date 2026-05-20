@@ -126,7 +126,9 @@ function dominantCategory(records) {
 }
 
 function computeDrawdownEstimate(totalPnl, recent30dPnl, portfolioValue) {
-  if (portfolioValue <= 0) return 0.4;
+  if (portfolioValue <= 0) {
+    return totalPnl < 0 || recent30dPnl < 0 ? 0.4 : 0;
+  }
   const loss = Math.abs(Math.min(totalPnl, recent30dPnl, 0));
   return Math.min(1, loss / portfolioValue);
 }

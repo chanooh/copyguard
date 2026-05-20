@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CopyGuard</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="workspace">
+        <aside class="side-panel">
+          <div class="brand">
+            <div class="brand-mark">CG</div>
+            <div>
+              <p class="eyebrow">CopyGuard</p>
+              <h1>Polymarket Wallet Risk Agent</h1>
+            </div>
+          </div>
+
+          <form id="analyze-form" class="analyze-form">
+            <label for="wallet-address">Wallet address</label>
+            <input
+              id="wallet-address"
+              name="walletAddress"
+              autocomplete="off"
+              spellcheck="false"
+              placeholder="0x..."
+              required
+            />
+
+            <label for="portfolio-size">Portfolio size</label>
+            <div class="input-with-unit">
+              <input
+                id="portfolio-size"
+                name="portfolioSize"
+                inputmode="decimal"
+                value="1000"
+                required
+              />
+              <span>USDC</span>
+            </div>
+
+            <button id="analyze-button" type="submit">Analyze Wallet</button>
+          </form>
+
+          <div id="status" class="status" role="status">Ready</div>
+
+          <div class="note-panel">
+            <p>Decision scope</p>
+            <ul>
+              <li>Copy-safety score</li>
+              <li>Risk and concentration checks</li>
+              <li>USDC allocation cap</li>
+              <li>Recommendation receipt hash</li>
+            </ul>
+          </div>
+        </aside>
+
+        <section class="results" aria-live="polite">
+          <div id="empty-state" class="empty-state">
+            <p class="eyebrow">Agent workspace</p>
+            <h2>Analyze a wallet before copying it.</h2>
+            <p>Paste a Polymarket wallet address to generate a risk profile, allocation cap, and receipt.</p>
+          </div>
+
+          <div id="result-view" class="result-view hidden">
+            <section class="decision-band">
+              <div>
+                <p class="eyebrow">Copy decision</p>
+                <h2 id="decision-title">Watch</h2>
+                <p id="decision-summary" class="summary"></p>
+              </div>
+              <div class="score-stack">
+                <div class="score-pill">
+                  <span>Copy</span>
+                  <strong id="copy-score">0</strong>
+                </div>
+                <div class="score-pill risk">
+                  <span>Risk</span>
+                  <strong id="risk-score">0</strong>
+                </div>
+              </div>
+            </section>
+
+            <section class="metrics-grid" id="metrics-grid"></section>
+
+            <section class="two-column">
+              <article class="panel">
+                <div class="panel-heading">
+                  <h3>USDC Allocation</h3>
+                  <span id="confidence-chip" class="chip">medium</span>
+                </div>
+                <div id="allocation-body" class="allocation-body"></div>
+              </article>
+
+              <article class="panel">
+                <div class="panel-heading">
+                  <h3>Category Exposure</h3>
+                </div>
+                <div id="category-exposure" class="category-list"></div>
+              </article>
+            </section>
+
+            <section class="two-column">
+              <article class="panel">
+                <div class="panel-heading">
+                  <h3>Strengths</h3>
+                </div>
+                <ul id="strengths-list" class="signal-list"></ul>
+              </article>
+
+              <article class="panel">
+                <div class="panel-heading">
+                  <h3>Risk Flags</h3>
+                </div>
+                <ul id="risks-list" class="signal-list risk-list"></ul>
+              </article>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>Stop-Copy Triggers</h3>
+              </div>
+              <ul id="triggers-list" class="trigger-list"></ul>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>Open Positions</h3>
+                <span id="position-count" class="chip"></span>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Market</th>
+                      <th>Outcome</th>
+                      <th>Value</th>
+                      <th>PnL</th>
+                      <th>Category</th>
+                    </tr>
+                  </thead>
+                  <tbody id="positions-table"></tbody>
+                </table>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-heading">
+                <h3>Recommendation Receipt</h3>
+                <span id="arc-status" class="chip">Arc planned</span>
+              </div>
+              <dl id="receipt-details" class="receipt-grid"></dl>
+              <div id="source-status" class="source-status"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>
+
