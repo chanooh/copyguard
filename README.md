@@ -35,7 +35,7 @@ Use a Polymarket wallet address and click **Analyze Wallet**.
 ## Verify
 
 ```bash
-npm test
+npm run verify
 ```
 
 ## Environment
@@ -66,4 +66,3 @@ Arc is not required for the core risk analysis. The planned lightweight integrat
 4. Display the Arc transaction hash in the dashboard.
 
 This keeps the demo focused on wallet intelligence while still giving the project a clean Circle/Arc story.
-

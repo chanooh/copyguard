@@ -8,10 +8,9 @@
     "dev": "node src/server.js",
     "start": "node src/server.js",
     "test": "node --test",
-    "verify": "node --test"
+    "verify": "node --check src/server.js && node --check public/app.js && node --test"
   },
   "engines": {
     "node": ">=18.17"
   }
 }
-
