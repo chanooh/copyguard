@@ -46,6 +46,7 @@ function renderResult(result) {
   text("#arc-status", result.arc?.status === "planned" ? "Arc planned" : "Arc ready");
 
   renderMetrics(metrics);
+  renderAiInsight(result.aiInsight);
   renderAllocation(recommendation.allocation);
   renderCategoryExposure(metrics.categoryExposure);
   renderList("#strengths-list", recommendation.strengths);
@@ -54,6 +55,44 @@ function renderResult(result) {
   renderPositions(data.positions || []);
   renderReceipt(receipt, result);
   applyDecisionTheme(recommendation.decision);
+}
+
+function renderAiInsight(insight) {
+  const status = insight?.status === "ready" ? `${insight.provider} ${insight.model || ""}` : "Rules only";
+  text("#ai-status", status.trim());
+
+  if (!insight || insight.status !== "ready") {
+    const message = insight?.riskNarrative?.[0] || "AI thesis is unavailable; deterministic scoring is still complete.";
+    document.querySelector("#ai-thesis").innerHTML = `
+      <p class="ai-muted">${escapeHtml(message)}</p>
+    `;
+    return;
+  }
+
+  document.querySelector("#ai-thesis").innerHTML = `
+    <div class="ai-summary">
+      <span>${escapeHtml(insight.walletStyle)}</span>
+      <p>${escapeHtml(insight.thesis)}</p>
+    </div>
+    <div class="ai-grid">
+      ${renderAiList("Takeaways", insight.keyTakeaways)}
+      ${renderAiList("Risks", insight.riskNarrative)}
+      ${renderAiList("Copy Plan", insight.copyPlan)}
+      ${renderAiList("Caveats", insight.dataCaveats)}
+    </div>
+  `;
+}
+
+function renderAiList(label, items) {
+  const rows = Array.isArray(items) && items.length > 0 ? items : ["No additional signal returned."];
+  return `
+    <div class="ai-list">
+      <strong>${escapeHtml(label)}</strong>
+      <ul>
+        ${rows.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+      </ul>
+    </div>
+  `;
 }
 
 function renderMetrics(metrics) {
@@ -151,7 +190,10 @@ function renderReceipt(receipt, result) {
     .join("");
 
   document.querySelector("#source-status").innerHTML = (result.sources || [])
-    .map((source) => `<span class="${source.ok ? "ok" : "bad"}">${escapeHtml(source.key)}</span>`)
+    .map((source) => {
+      const suffix = typeof source.count === "number" ? ` ${source.count}` : "";
+      return `<span class="${source.ok ? "ok" : "bad"}">${escapeHtml(source.key)}${escapeHtml(suffix)}</span>`;
+    })
     .join("");
 }
 

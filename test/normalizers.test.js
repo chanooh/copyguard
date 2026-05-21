@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  normalizeActivities,
   normalizeClosedPositions,
   normalizePositions,
   normalizeTrades,
@@ -79,6 +80,39 @@ test("normalizeClosedPositions and normalizeTrades keep analysis-safe numerics",
   assert.equal(trades[0].side, "buy");
   assert.equal(trades[0].value, 45);
   assert.equal(trades[0].timestamp, "2026-05-09T12:00:00.000Z");
+});
+
+test("normalizers use usdcSize and infer categories from Polymarket market text", () => {
+  const trades = normalizeTrades([
+    {
+      title: "LoL: T1 vs Kiwoom DRX (BO3) - LCK Rounds 1-2",
+      side: "BUY",
+      price: 0.07,
+      size: 20,
+      usdcSize: 1.4,
+      timestamp: 1779264670,
+    },
+  ]);
+  const activities = normalizeActivities([
+    {
+      type: "TRADE",
+      title: "GRVT FDV above $100M one day after launch?",
+      usdcSize: "226.95",
+      timestamp: "1779264670",
+    },
+  ]);
+  const positions = normalizePositions([
+    {
+      title: "Netanyahu out by June 30?",
+      currentValue: 15.75,
+    },
+  ]);
+
+  assert.equal(trades[0].value, 1.4);
+  assert.equal(trades[0].category, "sports");
+  assert.equal(activities[0].value, 226.95);
+  assert.equal(activities[0].category, "crypto");
+  assert.equal(positions[0].category, "politics");
 });
 
 test("normalizeValue accepts number, object, and array responses", () => {

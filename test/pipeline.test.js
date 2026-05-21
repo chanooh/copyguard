@@ -39,6 +39,23 @@ test("analyzeWallet returns the full dashboard contract", async () => {
           };
         },
       },
+      aiAnalyzer: {
+        async buildInsight(context) {
+          assert.equal(context.dataCounts.positions, 1);
+          return {
+            enabled: true,
+            provider: "deepseek",
+            model: "deepseek-test",
+            status: "ready",
+            thesis: "The wallet has a small but usable sample.",
+            walletStyle: "Focused test wallet",
+            keyTakeaways: ["Positive closed PnL."],
+            riskNarrative: ["Sample is limited."],
+            copyPlan: ["Use a small cap."],
+            dataCaveats: ["Fixture data."],
+          };
+        },
+      },
     },
   );
 
@@ -48,4 +65,8 @@ test("analyzeWallet returns the full dashboard contract", async () => {
   assert.match(result.receipt.hash, /^0x[a-f0-9]{64}$/);
   assert.equal(result.arc.status, "planned");
   assert.equal(result.resolvedUser.resolution, "direct-address");
+  assert.equal(result.dataCounts.positions, 1);
+  assert.equal(Object.hasOwn(result.data.positions[0], "raw"), false);
+  assert.equal(result.aiInsight.status, "ready");
+  assert.equal(result.aiInsight.walletStyle, "Focused test wallet");
 });

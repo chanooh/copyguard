@@ -76,7 +76,7 @@ export function normalizeTrades(payload) {
   return toArray(payload).map((raw, index) => {
     const price = pickNumber(raw, ["price", "avgPrice", "executionPrice"], 0);
     const size = pickNumber(raw, ["size", "shares", "quantity", "amount"], 0);
-    const value = pickNumber(raw, ["value", "usdcValue", "notional", "collateral"], price * size);
+    const value = pickNumber(raw, ["value", "usdcValue", "usdcSize", "notional", "collateral"], price * size);
 
     return {
       id: pickString(raw, ["id", "transactionHash", "txHash", "hash"], `trade-${index}`),
@@ -99,7 +99,7 @@ export function normalizeActivities(payload) {
     id: pickString(raw, ["id", "transactionHash", "txHash", "hash"], `activity-${index}`),
     type: normalizeSide(pickString(raw, ["type", "action", "side"], "activity")),
     title: pickString(raw, ["title", "marketTitle", "question", "name"], "Unknown market"),
-    value: pickNumber(raw, ["value", "amount", "usdcValue", "collateral"], 0),
+    value: pickNumber(raw, ["value", "amount", "usdcValue", "usdcSize", "collateral"], 0),
     timestamp: pickTimestamp(raw, ["timestamp", "createdAt", "created_at", "time"]),
     category: normalizeCategory(raw),
     raw,
@@ -166,7 +166,7 @@ function normalizeCategory(raw) {
     if (tag) return String(tag).trim().toLowerCase();
   }
 
-  return "uncategorized";
+  return inferCategoryFromText([raw?.title, raw?.slug, raw?.eventSlug, raw?.icon].filter(Boolean).join(" "));
 }
 
 function normalizeTimestamp(value) {
@@ -188,4 +188,34 @@ function normalizeTimestamp(value) {
   }
 
   return "";
+}
+
+function inferCategoryFromText(text) {
+  const value = String(text || "").toLowerCase();
+
+  if (/\b(bitcoin|btc|ethereum|eth|solana|crypto|token|fdv|airdrop|stablecoin|defi|dex|cex|binance|coinbase|grvt|ostium|edgex|standx|printr|predict\.fun|probable|spacex ipo)\b/.test(value)) {
+    return "crypto";
+  }
+
+  if (/\b(nba|nfl|mlb|nhl|soccer|football|tennis|ufc|boxing|f1|formula|drivers'? champion|lol|league of legends|lck|t1|drx|kiwoom|hawks|pistons|esports)\b/.test(value)) {
+    return "sports";
+  }
+
+  if (/\b(election|mayor|senate|congress|trump|biden|netanyahu|iran|israel|lebanon|ukraine|russia|ceasefire|government|democratic|republican|presidential|prime minister|head of state|governor|military action|ground offensive|seoul)\b/.test(value)) {
+    return "politics";
+  }
+
+  if (/\b(fed|rate|rates|interest|nasdaq|ndx|s&p|dow|stock|market cap|inflation|cpi|gdp|unemployment|treasury|ipo|crude oil|oil|gold|silver|commodity|commodities)\b/.test(value)) {
+    return "finance";
+  }
+
+  if (/\b(movie|oscar|grammy|music|album|celebrity|nobel|ufo|anthropic ceo)\b/.test(value)) {
+    return "culture";
+  }
+
+  if (/\b(weather|hurricane|temperature|rain|snow|storm)\b/.test(value)) {
+    return "weather";
+  }
+
+  return "uncategorized";
 }

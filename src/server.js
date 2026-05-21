@@ -4,6 +4,9 @@ import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { analyzeWallet } from "./analysis/pipeline.js";
+import { loadEnv } from "./config/env.js";
+
+loadEnv();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = resolve(__filename, "..");

@@ -1,4 +1,5 @@
 import { buildRecommendation } from "./agent.js";
+import { buildAiInsight, buildAiInsightContext } from "./deepseek.js";
 import { computeWalletMetrics } from "./metrics.js";
 import { createRecommendationReceipt } from "./receipt.js";
 import { PolymarketDataClient } from "../polymarket/client.js";
@@ -33,6 +34,15 @@ export async function analyzeWallet(input, options = {}) {
   const recommendation = buildRecommendation(metrics, {
     portfolioSizeUsdc: input.portfolioSizeUsdc,
   });
+  const aiInsight = await buildAiInsight(
+    buildAiInsightContext({
+      walletAddress,
+      walletData,
+      metrics,
+      recommendation,
+    }),
+    options.aiAnalyzer,
+  );
   const receipt = createRecommendationReceipt(
     {
       walletAddress,
@@ -47,18 +57,29 @@ export async function analyzeWallet(input, options = {}) {
     fetchedAt: now,
     metrics,
     recommendation,
+    aiInsight,
     receipt,
     sources: walletData.sources,
     resolvedUser: walletData.resolvedUser,
+    dataCounts: {
+      positions: walletData.normalized.positions.length,
+      closedPositions: walletData.normalized.closedPositions.length,
+      trades: walletData.normalized.trades.length,
+      activities: walletData.normalized.activities.length,
+    },
     data: {
-      positions: walletData.normalized.positions,
-      closedPositions: walletData.normalized.closedPositions,
-      trades: walletData.normalized.trades,
-      activities: walletData.normalized.activities,
+      positions: compactRecords(walletData.normalized.positions, 100),
+      closedPositions: compactRecords(walletData.normalized.closedPositions, 100),
+      trades: compactRecords(walletData.normalized.trades, 250),
+      activities: compactRecords(walletData.normalized.activities, 250),
     },
     arc: {
       status: "planned",
       label: "Arc recommendation receipt can record this hash on testnet.",
     },
   };
+}
+
+function compactRecords(records, limit) {
+  return records.slice(0, limit).map(({ raw, ...record }) => record);
 }

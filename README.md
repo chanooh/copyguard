@@ -12,6 +12,7 @@ The MVP includes:
 
 - Real Polymarket public data ingestion through a backend adapter.
 - Deterministic risk and copy-score metrics.
+- Optional DeepSeek-powered AI thesis that explains the deterministic result without replacing it.
 - Agent-style wallet profile, decision, allocation plan, and stop-copy triggers.
 - A recommendation receipt with a stable hash that can later be recorded on Arc.
 - A single dashboard UI for demo and submission.
@@ -45,7 +46,14 @@ Optional:
 ```txt
 PORT=3000
 POLYMARKET_API_BASE=https://data-api.polymarket.com
+DEEPSEEK_API_KEY=
+DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_BASE_URL=https://api.deepseek.com
 ```
+
+Create a local `.env` file from `.env.example` to enable the AI thesis panel. `.env` is ignored by git.
+
+DeepSeek is used only as an explanation layer. Copy score, risk score, allocation caps, and receipt hashes remain deterministic and testable.
 
 ## Data Sources
 

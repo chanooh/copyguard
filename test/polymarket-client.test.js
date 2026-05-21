@@ -11,12 +11,13 @@ test("PolymarketDataClient aggregates endpoint data and normalizes it", async ()
   const calls = [];
   const client = new PolymarketDataClient({
     baseUrl: "https://example.test",
+    profileApiBaseUrl: "https://profile-api.test",
     profileBaseUrl: "https://profile.test",
     fetchImpl: async (url) => {
       calls.push(String(url));
       const path = url.pathname;
       const payloads = {
-        "/api/profile/userData": null,
+        "/public-profile": null,
         "/positions": [{ title: "Open", currentValue: "10", category: "politics" }],
         "/closed-positions": [{ title: "Closed", realizedPnl: "5", category: "politics" }],
         "/trades": [{ title: "Trade", side: "BUY", price: "0.5", size: "20" }],
@@ -41,9 +42,10 @@ test("PolymarketDataClient aggregates endpoint data and normalizes it", async ()
 test("PolymarketDataClient tolerates partial source failures", async () => {
   const client = new PolymarketDataClient({
     baseUrl: "https://example.test",
+    profileApiBaseUrl: "https://profile-api.test",
     profileBaseUrl: "https://profile.test",
     fetchImpl: async (url) => {
-      if (url.pathname === "/api/profile/userData") return jsonResponse(null);
+      if (url.pathname === "/public-profile") return jsonResponse(null);
       if (url.pathname === "/trades") return jsonResponse({ error: "down" }, false, 503);
       return jsonResponse([]);
     },
@@ -61,9 +63,10 @@ test("PolymarketDataClient resolves linked Polymarket profile addresses to proxy
   const requestedUsers = [];
   const client = new PolymarketDataClient({
     baseUrl: "https://example.test",
+    profileApiBaseUrl: "https://profile-api.test",
     profileBaseUrl: "https://profile.test",
     fetchImpl: async (url) => {
-      if (url.pathname === "/api/profile/userData") {
+      if (url.pathname === "/public-profile") {
         return jsonResponse({ name: "bbxiang", proxyWallet });
       }
       requestedUsers.push(url.searchParams.get("user"));
@@ -84,6 +87,7 @@ test("PolymarketDataClient resolves profile URLs from embedded proxyWallet value
   const proxyWallet = "0xab1cab72897cb41d07b925107b065a88465b35a7";
   const client = new PolymarketDataClient({
     baseUrl: "https://example.test",
+    profileApiBaseUrl: "https://profile-api.test",
     profileBaseUrl: "https://profile.test",
     fetchImpl: async (url) => {
       if (url.pathname === "/@bbxiang") {
@@ -99,6 +103,64 @@ test("PolymarketDataClient resolves profile URLs from embedded proxyWallet value
   assert.equal(data.resolvedUser.resolution, "profile-page");
   assert.equal(data.resolvedUser.username, "bbxiang");
   assert.equal(data.resolvedUser.queryUser, proxyWallet);
+});
+
+test("PolymarketDataClient paginates list endpoints until a short page", async () => {
+  const requestedOffsets = [];
+  const client = new PolymarketDataClient({
+    baseUrl: "https://example.test",
+    profileApiBaseUrl: "https://profile-api.test",
+    profileBaseUrl: "https://profile.test",
+    positionsLimit: 2,
+    closedPositionsLimit: 2,
+    tradesLimit: 2,
+    activitiesLimit: 2,
+    fetchImpl: async (url) => {
+      if (url.pathname === "/public-profile") return jsonResponse(null);
+      if (url.pathname === "/value") return jsonResponse([{ value: "0" }]);
+
+      const offset = Number(url.searchParams.get("offset") || 0);
+      const limit = Number(url.searchParams.get("limit") || 0);
+      requestedOffsets.push(`${url.pathname}:${offset}`);
+
+      const rows = offset === 0 ? Array.from({ length: limit }, (_, index) => ({ id: `${url.pathname}-${index}` })) : [{ id: `${url.pathname}-final` }];
+      return jsonResponse(rows);
+    },
+  });
+
+  const data = await client.getWalletData("0x1234567890abcdef1234567890abcdef12345678");
+
+  assert.equal(data.normalized.positions.length, 3);
+  assert.equal(data.normalized.closedPositions.length, 3);
+  assert.equal(data.normalized.trades.length, 3);
+  assert.equal(data.normalized.activities.length, 3);
+  assert.deepEqual(requestedOffsets.filter((entry) => entry.startsWith("/positions")), ["/positions:0", "/positions:2"]);
+  assert.equal(data.sources.find((source) => source.key === "positions").count, 3);
+});
+
+test("PolymarketDataClient retries transient fetch failures", async () => {
+  let positionAttempts = 0;
+  const client = new PolymarketDataClient({
+    baseUrl: "https://example.test",
+    profileApiBaseUrl: "https://profile-api.test",
+    profileBaseUrl: "https://profile.test",
+    fetchImpl: async (url) => {
+      if (url.pathname === "/public-profile") return jsonResponse(null);
+      if (url.pathname === "/positions") {
+        positionAttempts += 1;
+        if (positionAttempts === 1) throw new Error("temporary socket failure");
+        return jsonResponse([{ title: "Recovered", currentValue: 12 }]);
+      }
+      if (url.pathname === "/value") return jsonResponse([{ value: "12" }]);
+      return jsonResponse([]);
+    },
+  });
+
+  const data = await client.getWalletData("0x1234567890abcdef1234567890abcdef12345678");
+
+  assert.equal(positionAttempts, 2);
+  assert.equal(data.normalized.positions[0].title, "Recovered");
+  assert.equal(data.sources.find((source) => source.key === "positions").ok, true);
 });
 
 test("parsePolymarketUsername and extractProxyWalletFromProfileHtml support profile inputs", () => {

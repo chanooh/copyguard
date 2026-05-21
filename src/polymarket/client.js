@@ -4,52 +4,94 @@ import {
   normalizePositions,
   normalizeTrades,
   normalizeValue,
+  toArray,
 } from "./normalizers.js";
 
 const DEFAULT_BASE_URL = "https://data-api.polymarket.com";
+const DEFAULT_PROFILE_API_BASE_URL = "https://gamma-api.polymarket.com";
 const DEFAULT_PROFILE_BASE_URL = "https://polymarket.com";
 const EVM_ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 
 export class PolymarketDataClient {
   constructor(options = {}) {
     this.baseUrl = options.baseUrl || process.env.POLYMARKET_API_BASE || DEFAULT_BASE_URL;
+    this.profileApiBaseUrl = options.profileApiBaseUrl || process.env.POLYMARKET_PROFILE_API_BASE || DEFAULT_PROFILE_API_BASE_URL;
     this.profileBaseUrl = options.profileBaseUrl || process.env.POLYMARKET_PROFILE_BASE || DEFAULT_PROFILE_BASE_URL;
     this.fetchImpl = options.fetchImpl || globalThis.fetch;
     this.timeoutMs = options.timeoutMs || 10000;
+    this.pageLimits = {
+      positions: options.positionsLimit || 500,
+      closedPositions: options.closedPositionsLimit || 50,
+      trades: options.tradesLimit || 1000,
+      activities: options.activitiesLimit || 500,
+    };
+    this.maxItems = {
+      positions: options.maxPositions || 2000,
+      closedPositions: options.maxClosedPositions || 1000,
+      trades: options.maxTrades || 5000,
+      activities: options.maxActivities || 2000,
+    };
   }
 
   async getWalletData(walletIdentifier) {
     const resolvedUser = await this.resolveUser(walletIdentifier);
     const queryUser = resolvedUser.queryUser;
     const endpoints = [
-      ["positions", "/positions", { user: queryUser, limit: "100" }],
-      ["closedPositions", "/closed-positions", { user: queryUser, limit: "100" }],
-      ["trades", "/trades", { user: queryUser, limit: "150" }],
-      ["activities", "/activity", { user: queryUser, limit: "150" }],
-      ["value", "/value", { user: queryUser }],
+      [
+        "positions",
+        () =>
+          this.fetchPaginated("/positions", {
+            user: queryUser,
+            limit: this.pageLimits.positions,
+            maxItems: this.maxItems.positions,
+          }),
+      ],
+      [
+        "closedPositions",
+        () =>
+          this.fetchPaginated("/closed-positions", {
+            user: queryUser,
+            limit: this.pageLimits.closedPositions,
+            maxItems: this.maxItems.closedPositions,
+          }),
+      ],
+      [
+        "trades",
+        () =>
+          this.fetchPaginated("/trades", {
+            user: queryUser,
+            limit: this.pageLimits.trades,
+            maxItems: this.maxItems.trades,
+          }),
+      ],
+      [
+        "activities",
+        () =>
+          this.fetchPaginated("/activity", {
+            user: queryUser,
+            limit: this.pageLimits.activities,
+            maxItems: this.maxItems.activities,
+          }),
+      ],
+      ["value", () => this.fetchJson("/value", { user: queryUser })],
     ];
-
-    const settled = await Promise.allSettled(
-      endpoints.map(async ([key, path, params]) => [key, await this.fetchJson(path, params)]),
-    );
 
     const raw = {};
     const sources = [];
 
-    for (let index = 0; index < settled.length; index += 1) {
-      const [key] = endpoints[index];
-      const result = settled[index];
-      if (result.status === "fulfilled") {
-        raw[key] = result.value[1];
-        sources.push({ key, ok: true });
-      } else {
+    for (const [key, fetcher] of endpoints) {
+      try {
+        raw[key] = await fetcher();
+        sources.push(buildSourceStatus(key, raw[key]));
+      } catch (error) {
         raw[key] = null;
-        sources.push({ key, ok: false, error: result.reason?.message || "Request failed" });
+        sources.push({ key, ok: false, error: error?.message || "Request failed" });
       }
     }
 
     if (!sources.some((source) => source.ok)) {
-      throw new Error("Polymarket data API did not return any usable wallet data.");
+      const detail = sources.map((source) => `${source.key}: ${source.error}`).join("; ");
+      throw new Error(`Polymarket data API did not return any usable wallet data. ${detail}`);
     }
 
     return {
@@ -116,7 +158,7 @@ export class PolymarketDataClient {
   }
 
   async fetchProfileUserData(address) {
-    const url = new URL("/api/profile/userData", this.profileBaseUrl);
+    const url = new URL("/public-profile", this.profileApiBaseUrl);
     url.searchParams.set("address", address);
     return this.fetchJsonUrl(url);
   }
@@ -142,8 +184,29 @@ export class PolymarketDataClient {
     return this.fetchJsonUrl(url, `Polymarket ${path}`);
   }
 
+  async fetchPaginated(path, options = {}) {
+    const { limit = 100, maxItems = 1000, ...params } = options;
+    const pages = [];
+    let offset = 0;
+
+    while (pages.length < maxItems) {
+      const page = await this.fetchJson(path, {
+        ...params,
+        limit,
+        offset,
+      });
+      const rows = toArray(page);
+      pages.push(...rows);
+
+      if (rows.length < limit) break;
+      offset += limit;
+    }
+
+    return pages.slice(0, maxItems);
+  }
+
   async fetchJsonUrl(url, label = "Polymarket") {
-    const response = await this.fetchWithTimeout(url, { accept: "application/json" });
+    const response = await this.fetchWithRetries(url, { accept: "application/json" });
     if (!response.ok) {
       throw new Error(`${label} returned ${response.status}`);
     }
@@ -151,11 +214,26 @@ export class PolymarketDataClient {
   }
 
   async fetchTextUrl(url, label = "Polymarket profile") {
-    const response = await this.fetchWithTimeout(url, { accept: "text/html" });
+    const response = await this.fetchWithRetries(url, { accept: "text/html" });
     if (!response.ok) {
       throw new Error(`${label} returned ${response.status}`);
     }
     return response.text();
+  }
+
+  async fetchWithRetries(url, headers, attempts = 3) {
+    let lastError;
+    for (let attempt = 1; attempt <= attempts; attempt += 1) {
+      try {
+        return await this.fetchWithTimeout(url, headers);
+      } catch (error) {
+        lastError = error;
+        if (attempt < attempts) {
+          await delay(250 * attempt);
+        }
+      }
+    }
+    throw lastError;
   }
 
   async fetchWithTimeout(url, headers) {
@@ -164,13 +242,25 @@ export class PolymarketDataClient {
 
     try {
       return await this.fetchImpl(url, {
-        headers,
+        headers: {
+          "user-agent": "CopyGuard/0.1",
+          ...headers,
+        },
         signal: controller.signal,
       });
     } finally {
       clearTimeout(timeout);
     }
   }
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function buildSourceStatus(key, payload) {
+  const count = Array.isArray(payload) ? payload.length : undefined;
+  return count === undefined ? { key, ok: true } : { key, ok: true, count };
 }
 
 export function parsePolymarketUsername(input) {
