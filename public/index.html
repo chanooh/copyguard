@@ -44,6 +44,20 @@
             <button id="analyze-button" type="submit">Analyze Wallet</button>
           </form>
 
+          <div id="payment-panel" class="payment-panel hidden">
+            <div class="payment-heading">
+              <div>
+                <p>Arc payment</p>
+                <strong id="payment-price">0.01 USDC</strong>
+              </div>
+              <span id="payment-network">Testnet</span>
+            </div>
+            <button id="connect-wallet-button" type="button">Connect Wallet</button>
+            <button id="pay-button" type="button" disabled>Pay to Unlock</button>
+            <div id="wallet-status" class="payment-status">Wallet not connected</div>
+            <div id="payment-status" class="payment-status">Payment required before analysis</div>
+          </div>
+
           <div id="status" class="status" role="status">Ready</div>
 
           <div class="note-panel">

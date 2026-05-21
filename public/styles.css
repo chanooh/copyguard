@@ -184,6 +184,63 @@ button:disabled {
   opacity: 0.7;
 }
 
+.payment-panel {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+}
+
+.payment-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.payment-heading p {
+  margin-bottom: 3px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.payment-heading strong {
+  font-size: 20px;
+}
+
+.payment-heading span {
+  border-radius: 999px;
+  padding: 5px 9px;
+  background: #eef1f5;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.payment-panel button {
+  margin-top: 0;
+}
+
+.payment-panel button + button {
+  background: var(--ink);
+}
+
+.payment-status {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.payment-status.error {
+  color: var(--red);
+}
+
 .status {
   margin-top: 18px;
   padding: 10px 12px;

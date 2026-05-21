@@ -49,11 +49,18 @@ POLYMARKET_API_BASE=https://data-api.polymarket.com
 DEEPSEEK_API_KEY=
 DEEPSEEK_MODEL=deepseek-v4-flash
 DEEPSEEK_BASE_URL=https://api.deepseek.com
+ARC_PAYMENT_REQUIRED=false
+ARC_PAYMENT_RECIPIENT=
+ARC_PAYMENT_AMOUNT_USDC=0.01
+ARC_RPC_URL=https://rpc.testnet.arc.network
+ARC_EXPLORER_URL=https://testnet.arcscan.app
 ```
 
 Create a local `.env` file from `.env.example` to enable the AI thesis panel. `.env` is ignored by git.
 
 DeepSeek is used only as an explanation layer. Copy score, risk score, allocation caps, and receipt hashes remain deterministic and testable.
+
+To enable paid queries, set `ARC_PAYMENT_REQUIRED=true` and set `ARC_PAYMENT_RECIPIENT` to the Arc Testnet wallet that should receive the native USDC payment. The app verifies the transaction on Arc before running `/api/analyze`, and each verified payment transaction can be consumed only once.
 
 ## Data Sources
 
@@ -66,11 +73,19 @@ The app uses public Polymarket API surfaces:
 
 ## Arc Integration Plan
 
-Arc is not required for the core risk analysis. The planned lightweight integration is a recommendation receipt:
+Arc is integrated as a configurable pay-per-analysis gate:
+
+1. The user connects an EVM wallet.
+2. The app switches or adds Arc Testnet.
+3. The user sends `ARC_PAYMENT_AMOUNT_USDC` native USDC to `ARC_PAYMENT_RECIPIENT`.
+4. The backend verifies the transaction through Arc RPC.
+5. The verified payment is consumed once when analysis runs.
+
+The remaining receipt flow is still available as the next onchain proof layer:
 
 1. Generate canonical JSON for the agent decision.
 2. Hash the receipt.
 3. Record the hash and key fields on Arc testnet as a verifiable decision event.
 4. Display the Arc transaction hash in the dashboard.
 
-This keeps the demo focused on wallet intelligence while still giving the project a clean Circle/Arc story.
+Arc uses USDC as its native gas token. Native transfers and gas accounting use 18-decimal internal values, while wallets should display USDC with 6 decimals.

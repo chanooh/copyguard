@@ -4,6 +4,7 @@ import { extname, join, normalize, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { analyzeWallet } from "./analysis/pipeline.js";
+import { ArcPaymentVerifier } from "./arc/payment.js";
 import { loadEnv } from "./config/env.js";
 
 loadEnv();
@@ -13,6 +14,8 @@ const __dirname = resolve(__filename, "..");
 const publicDir = resolve(__dirname, "..", "public");
 
 export function createAppServer(options = {}) {
+  const paymentVerifier = options.paymentVerifier || new ArcPaymentVerifier();
+
   return createServer(async (req, res) => {
     try {
       setSecurityHeaders(res);
@@ -30,10 +33,35 @@ export function createAppServer(options = {}) {
         return;
       }
 
+      if (req.method === "GET" && url.pathname === "/api/config") {
+        sendJson(res, 200, {
+          payment: paymentVerifier.publicConfig(),
+        });
+        return;
+      }
+
+      if (req.method === "POST" && url.pathname === "/api/arc/verify-payment") {
+        const body = await readJsonBody(req);
+        const payment = await paymentVerifier.verifyPayment(body);
+        sendJson(res, 200, { payment });
+        return;
+      }
+
       if (req.method === "POST" && url.pathname === "/api/analyze") {
         const body = await readJsonBody(req);
+        const payment = await paymentVerifier.consumePayment({
+          txHash: body.paymentTxHash,
+          payerAddress: body.payerAddress,
+        });
         const result = await analyzeWallet(body, { client: options.client });
-        sendJson(res, 200, result);
+        sendJson(res, 200, {
+          ...result,
+          arc: {
+            ...result.arc,
+            payment,
+            status: payment.required ? "paid" : result.arc?.status,
+          },
+        });
         return;
       }
 
