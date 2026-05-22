@@ -54,6 +54,8 @@ ARC_PAYMENT_RECIPIENT=
 ARC_PAYMENT_AMOUNT_USDC=0.01
 ARC_RPC_URL=https://rpc.testnet.arc.network
 ARC_EXPLORER_URL=https://testnet.arcscan.app
+KV_REST_API_URL=
+KV_REST_API_TOKEN=
 ```
 
 Create a local `.env` file from `.env.example` to enable the AI thesis panel. `.env` is ignored by git.
@@ -61,6 +63,18 @@ Create a local `.env` file from `.env.example` to enable the AI thesis panel. `.
 DeepSeek is used only as an explanation layer. Copy score, risk score, allocation caps, and receipt hashes remain deterministic and testable.
 
 To enable paid queries, set `ARC_PAYMENT_REQUIRED=true` and set `ARC_PAYMENT_RECIPIENT` to the Arc Testnet wallet that should receive the native USDC payment. The app verifies the transaction on Arc before running `/api/analyze`, and each verified payment transaction can be consumed only once.
+
+For Vercel deployment, add Vercel KV or an Upstash Redis database and set `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Without those variables, payment consumption falls back to in-memory storage, which is acceptable for local demos but not durable across serverless cold starts.
+
+## Vercel Deployment
+
+This repo includes Vercel serverless entrypoints:
+
+- `api/config.js`
+- `api/analyze.js`
+- `api/arc/verify-payment.js`
+
+`public/` is served as the static frontend. Configure the environment variables above in Vercel before production deployment.
 
 ## Data Sources
 

@@ -7,6 +7,7 @@ import {
   parseNativeUsdcToWei,
   toRpcQuantity,
 } from "../src/arc/payment.js";
+import { MemoryPaymentUsageStore, UpstashPaymentUsageStore } from "../src/arc/payment-store.js";
 
 const payer = "0x1111111111111111111111111111111111111111";
 const recipient = "0x2222222222222222222222222222222222222222";
@@ -40,6 +41,7 @@ test("ArcPaymentVerifier verifies and consumes a native Arc USDC transfer once",
       ARC_PAYMENT_AMOUNT_USDC: "0.01",
       ARC_RPC_URL: "https://arc-rpc.example",
     }),
+    usageStore: new MemoryPaymentUsageStore(),
     pollAttempts: 1,
     fetchImpl: mockRpcFetch({
       tx: {
@@ -75,6 +77,7 @@ test("ArcPaymentVerifier rejects underpaid transactions", async () => {
       ARC_PAYMENT_AMOUNT_USDC: "0.01",
       ARC_RPC_URL: "https://arc-rpc.example",
     }),
+    usageStore: new MemoryPaymentUsageStore(),
     pollAttempts: 1,
     fetchImpl: mockRpcFetch({
       tx: {
@@ -100,6 +103,7 @@ test("ArcPaymentVerifier fails closed when recipient is missing", async () => {
       ARC_PAYMENT_REQUIRED: "true",
       ARC_PAYMENT_RECIPIENT: "",
     }),
+    usageStore: new MemoryPaymentUsageStore(),
     fetchImpl: async () => {
       throw new Error("should not call rpc");
     },
@@ -109,6 +113,39 @@ test("ArcPaymentVerifier fails closed when recipient is missing", async () => {
     () => verifier.verifyPayment({ txHash, payerAddress: payer }),
     /ARC_PAYMENT_RECIPIENT/,
   );
+});
+
+test("UpstashPaymentUsageStore marks a tx hash atomically", async () => {
+  const calls = [];
+  const store = new UpstashPaymentUsageStore({
+    url: "https://kv.example",
+    token: "token",
+    ttlSeconds: 60,
+    fetchImpl: async (_url, options) => {
+      const command = JSON.parse(options.body);
+      calls.push({ command, authorization: options.headers.authorization });
+      return {
+        ok: true,
+        async json() {
+          if (command[0] === "GET") return { result: null };
+          return { result: "OK" };
+        },
+      };
+    },
+  });
+
+  assert.equal(await store.isUsed(txHash), false);
+  assert.equal(await store.markUsed(txHash, { payer }), true);
+  assert.deepEqual(calls[0].command, ["GET", `copyguard:arc-payment-used:${txHash}`]);
+  assert.deepEqual(calls[1].command, [
+    "SET",
+    `copyguard:arc-payment-used:${txHash}`,
+    JSON.stringify({ payer }),
+    "NX",
+    "EX",
+    60,
+  ]);
+  assert.equal(calls[1].authorization, "Bearer token");
 });
 
 function mockRpcFetch({ tx, receipt }) {

@@ -1,3 +1,5 @@
+import { createPaymentUsageStore } from "./payment-store.js";
+
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
 
@@ -39,10 +41,10 @@ export class ArcPaymentVerifier {
   constructor(options = {}) {
     this.config = options.config || createArcPaymentConfig();
     this.fetchImpl = options.fetchImpl || globalThis.fetch;
+    this.usageStore = options.usageStore || createPaymentUsageStore();
     this.pollAttempts = options.pollAttempts || 20;
     this.pollDelayMs = options.pollDelayMs || 750;
     this.verifiedPayments = new Map();
-    this.usedPayments = new Set();
   }
 
   publicConfig() {
@@ -59,6 +61,10 @@ export class ArcPaymentVerifier {
       rpcUrl: config.rpcUrl,
       explorerUrl: config.explorerUrl,
       nativeCurrency: config.nativeCurrency,
+      paymentStore: {
+        type: this.usageStore.type,
+        durable: Boolean(this.usageStore.durable),
+      },
     };
   }
 
@@ -83,7 +89,7 @@ export class ArcPaymentVerifier {
       throw httpError(400, "A valid payer wallet address is required.");
     }
 
-    if (this.usedPayments.has(txHash)) {
+    if (await this.usageStore.isUsed(txHash)) {
       throw httpError(409, "This Arc payment has already been used for an analysis.");
     }
 
@@ -113,11 +119,17 @@ export class ArcPaymentVerifier {
     const verification = await this.verifyPayment(input);
     if (!this.config.required) return verification;
 
-    if (this.usedPayments.has(verification.txHash)) {
+    const marked = await this.usageStore.markUsed(verification.txHash, {
+      payer: verification.payer,
+      recipient: verification.recipient,
+      amountWei: verification.amountWei,
+      consumedAt: new Date().toISOString(),
+    });
+
+    if (!marked) {
       throw httpError(409, "This Arc payment has already been used for an analysis.");
     }
 
-    this.usedPayments.add(verification.txHash);
     this.verifiedPayments.delete(verification.txHash);
 
     return {
