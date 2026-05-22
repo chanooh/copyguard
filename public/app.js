@@ -168,17 +168,21 @@ async function payForAnalysis() {
 async function ensureArcNetwork() {
   const payment = appConfig.payment;
   const ethereum = walletProvider();
+  setPaymentMessage(`Checking ${payment.chainName}...`);
+
   const currentChainId = await ethereum.request({ method: "eth_chainId" });
   if (String(currentChainId).toLowerCase() === String(payment.chainIdHex).toLowerCase()) return;
 
   try {
+    setPaymentMessage(`Switching to ${payment.chainName}...`);
     await ethereum.request({
       method: "wallet_switchEthereumChain",
       params: [{ chainId: payment.chainIdHex }],
     });
   } catch (error) {
-    if (error.code !== 4902) throw error;
+    if (!isUnknownChainError(error)) throw error;
 
+    setPaymentMessage(`Adding ${payment.chainName} to wallet...`);
     await ethereum.request({
       method: "wallet_addEthereumChain",
       params: [
@@ -191,6 +195,17 @@ async function ensureArcNetwork() {
         },
       ],
     });
+
+    setPaymentMessage(`Switching to ${payment.chainName}...`);
+    await ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: payment.chainIdHex }],
+    });
+  }
+
+  const chainId = await ethereum.request({ method: "eth_chainId" });
+  if (String(chainId).toLowerCase() !== String(payment.chainIdHex).toLowerCase()) {
+    throw new Error(`Switch to ${payment.chainName} before paying.`);
   }
 }
 
@@ -233,6 +248,15 @@ function walletProvider() {
     throw new Error("No injected wallet found. Install MetaMask, Rabby, or another EVM wallet.");
   }
   return window.ethereum;
+}
+
+function isUnknownChainError(error) {
+  const candidates = [
+    error?.code,
+    error?.data?.code,
+    error?.data?.originalError?.code,
+  ];
+  return candidates.some((code) => Number(code) === 4902);
 }
 
 function renderWalletState() {
