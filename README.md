@@ -88,4 +88,4 @@ The remaining receipt flow is still available as the next onchain proof layer:
 3. Record the hash and key fields on Arc testnet as a verifiable decision event.
 4. Display the Arc transaction hash in the dashboard.
 
-Arc uses USDC as its native gas token. Native transfers and gas accounting use 18-decimal internal values, while wallets should display USDC with 6 decimals.
+Arc uses USDC as its native gas token. Native transfers, gas accounting, and the wallet `nativeCurrency.decimals` field use 18-decimal values.
