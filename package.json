@@ -5,10 +5,9 @@
   "type": "module",
   "description": "Polymarket wallet risk agent for copy-trading allocation decisions.",
   "scripts": {
-    "dev": "node src/server.js",
-    "start": "node src/server.js",
+    "dev": "node src/local-server.js",
     "test": "node --test",
-    "verify": "node --check src/server.js && node --check public/app.js && node --check api/config.js && node --check api/analyze.js && node --check api/arc/verify-payment.js && node --test"
+    "verify": "node --check src/local-server.js && node --check public/assets/app.js && node --check api/config.js && node --check api/analyze.js && node --check api/arc/verify-payment.js && node --test"
   },
   "engines": {
     "node": ">=18.17"

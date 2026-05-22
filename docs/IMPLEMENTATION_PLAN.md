@@ -24,7 +24,7 @@ public dashboard
 
 ## Backend Modules
 
-- `src/server.js`: HTTP server, static files, JSON API routing.
+- `src/local-server.js`: local HTTP server, static files, JSON API routing.
 - `src/polymarket/client.js`: fetches real Polymarket data.
 - `src/polymarket/normalizers.js`: converts variable API payloads into stable app structures.
 - `src/analysis/metrics.js`: deterministic metrics and scoring.
@@ -54,4 +54,3 @@ public dashboard
 - No private-key handling.
 - No automatic order placement.
 - No dependency on a database for MVP.
-
