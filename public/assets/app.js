@@ -12,6 +12,7 @@ const paymentStatus = document.querySelector("#payment-status");
 let appConfig = { payment: { required: false, configured: true } };
 let walletState = { address: "" };
 let paymentState = { verified: false, txHash: "", payerAddress: "" };
+const legacyArcChainIds = new Set(["0x4cf4b2"]);
 
 initializeApp();
 
@@ -170,8 +171,12 @@ async function ensureArcNetwork() {
   const ethereum = walletProvider();
   setPaymentMessage(`Checking ${payment.chainName}...`);
 
-  const currentChainId = await ethereum.request({ method: "eth_chainId" });
-  if (String(currentChainId).toLowerCase() === String(payment.chainIdHex).toLowerCase()) return;
+  const currentChainId = normalizeChainId(await ethereum.request({ method: "eth_chainId" }));
+  const expectedChainId = normalizeChainId(payment.chainIdHex);
+  if (currentChainId === expectedChainId) return;
+  if (legacyArcChainIds.has(currentChainId)) {
+    throw new Error(legacyArcNetworkMessage(payment, currentChainId));
+  }
 
   try {
     setPaymentMessage(`Switching to ${payment.chainName}...`);
@@ -183,18 +188,25 @@ async function ensureArcNetwork() {
     if (!isUnknownChainError(error)) throw error;
 
     setPaymentMessage(`Adding ${payment.chainName} to wallet...`);
-    await ethereum.request({
-      method: "wallet_addEthereumChain",
-      params: [
-        {
-          chainId: payment.chainIdHex,
-          chainName: payment.chainName,
-          nativeCurrency: payment.nativeCurrency,
-          rpcUrls: [payment.rpcUrl],
-          blockExplorerUrls: [payment.explorerUrl],
-        },
-      ],
-    });
+    try {
+      await ethereum.request({
+        method: "wallet_addEthereumChain",
+        params: [
+          {
+            chainId: payment.chainIdHex,
+            chainName: payment.chainName,
+            nativeCurrency: payment.nativeCurrency,
+            rpcUrls: [payment.rpcUrl],
+            blockExplorerUrls: [payment.explorerUrl],
+          },
+        ],
+      });
+    } catch (addError) {
+      if (isDuplicateRpcNetworkError(addError)) {
+        throw new Error(legacyArcNetworkMessage(payment, "0x4cf4b2"));
+      }
+      throw addError;
+    }
 
     setPaymentMessage(`Switching to ${payment.chainName}...`);
     await ethereum.request({
@@ -203,8 +215,11 @@ async function ensureArcNetwork() {
     });
   }
 
-  const chainId = await ethereum.request({ method: "eth_chainId" });
-  if (String(chainId).toLowerCase() !== String(payment.chainIdHex).toLowerCase()) {
+  const chainId = normalizeChainId(await ethereum.request({ method: "eth_chainId" }));
+  if (legacyArcChainIds.has(chainId)) {
+    throw new Error(legacyArcNetworkMessage(payment, chainId));
+  }
+  if (chainId !== expectedChainId) {
     throw new Error(`Switch to ${payment.chainName} before paying.`);
   }
 }
@@ -257,6 +272,29 @@ function isUnknownChainError(error) {
     error?.data?.originalError?.code,
   ];
   return candidates.some((code) => Number(code) === 4902);
+}
+
+function isDuplicateRpcNetworkError(error) {
+  return errorMessages(error).some((message) => {
+    const text = message.toLowerCase();
+    return text.includes("same rpc endpoint") || text.includes("rpc endpoint as existing network");
+  });
+}
+
+function errorMessages(error) {
+  return [
+    error?.message,
+    error?.data?.message,
+    error?.data?.originalError?.message,
+  ].filter(Boolean).map(String);
+}
+
+function normalizeChainId(chainId) {
+  return String(chainId || "").toLowerCase();
+}
+
+function legacyArcNetworkMessage(payment, chainId) {
+  return `Your wallet has an old ${payment.chainName} network with chain ID ${chainId}. Remove that network from MetaMask, then connect again. The correct chain ID is ${payment.chainIdHex}.`;
 }
 
 function renderWalletState() {
