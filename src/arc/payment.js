@@ -21,10 +21,12 @@ export function createArcPaymentConfig(env = process.env) {
   const amountUsdc = String(env.ARC_PAYMENT_AMOUNT_USDC || "0.01").trim();
   const amountWei = parseNativeUsdcToWei(amountUsdc);
   const required = parseBoolean(env.ARC_PAYMENT_REQUIRED, false);
+  const verifyOnchain = parseBoolean(env.ARC_PAYMENT_VERIFY_ONCHAIN, true);
   const chainIdDecimal = Number(env.ARC_CHAIN_ID || ARC_TESTNET.chainIdDecimal);
 
   return {
     required,
+    verifyOnchain,
     configured: !required || Boolean(recipient),
     recipient,
     amountUsdc,
@@ -52,6 +54,7 @@ export class ArcPaymentVerifier {
     const config = this.config;
     return {
       required: config.required,
+      verifyOnchain: config.verifyOnchain,
       configured: config.configured,
       recipient: config.recipient,
       amountUsdc: config.amountUsdc,
@@ -100,6 +103,12 @@ export class ArcPaymentVerifier {
         throw httpError(400, "Payment transaction does not match the connected wallet.");
       }
       return cached;
+    }
+
+    if (!this.config.verifyOnchain) {
+      const verification = this.createSubmittedPayment({ payer, txHash });
+      this.verifiedPayments.set(txHash, verification);
+      return verification;
     }
 
     const [tx, receipt] = await Promise.all([
@@ -178,6 +187,23 @@ export class ArcPaymentVerifier {
       requiredAmountUsdc: this.config.amountUsdc,
       chainIdDecimal: this.config.chainIdDecimal,
       explorerUrl: `${this.config.explorerUrl}/tx/${txHash}`,
+    };
+  }
+
+  createSubmittedPayment({ payer, txHash }) {
+    return {
+      ok: true,
+      required: true,
+      status: "submitted",
+      txHash,
+      payer,
+      recipient: this.config.recipient,
+      amountWei: this.config.amountWei,
+      requiredAmountWei: this.config.amountWei,
+      requiredAmountUsdc: this.config.amountUsdc,
+      chainIdDecimal: this.config.chainIdDecimal,
+      explorerUrl: `${this.config.explorerUrl}/tx/${txHash}`,
+      verificationMode: "submitted",
     };
   }
 

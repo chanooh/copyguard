@@ -50,6 +50,7 @@ DEEPSEEK_API_KEY=
 DEEPSEEK_MODEL=deepseek-v4-flash
 DEEPSEEK_BASE_URL=https://api.deepseek.com
 ARC_PAYMENT_REQUIRED=false
+ARC_PAYMENT_VERIFY_ONCHAIN=true
 ARC_PAYMENT_RECIPIENT=
 ARC_PAYMENT_AMOUNT_USDC=0.01
 ARC_RPC_URL=https://rpc.testnet.arc.network
@@ -62,9 +63,11 @@ Create a local `.env` file from `.env.example` to enable the AI thesis panel. `.
 
 DeepSeek is used only as an explanation layer. Copy score, risk score, allocation caps, and receipt hashes remain deterministic and testable.
 
-To enable paid queries, set `ARC_PAYMENT_REQUIRED=true` and set `ARC_PAYMENT_RECIPIENT` to the Arc Testnet wallet that should receive the native USDC payment. The app verifies the transaction on Arc before running `/api/analyze`, and each verified payment transaction can be consumed only once.
+To enable paid queries, set `ARC_PAYMENT_REQUIRED=true` and set `ARC_PAYMENT_RECIPIENT` to the Arc Testnet wallet that should receive the native USDC payment. By default, `ARC_PAYMENT_VERIFY_ONCHAIN=true` makes the backend verify the transaction through Arc RPC before running `/api/analyze`. It checks that the transaction is confirmed, successful, sent by the connected wallet, sent to the configured recipient, and paid at least the configured amount.
 
-For Vercel deployment, add Vercel KV or an Upstash Redis database and set `KV_REST_API_URL` and `KV_REST_API_TOKEN`. Without those variables, payment consumption falls back to in-memory storage, which is acceptable for local demos but not durable across serverless cold starts.
+For hackathon demos, `ARC_PAYMENT_VERIFY_ONCHAIN=false` can be used as a submitted-transaction mode. In that mode, the backend accepts a valid transaction hash returned by the wallet and consumes it once, but it does not call Arc RPC or prove that the transaction succeeded onchain. This keeps the UX flow intact while avoiding testnet RPC timing issues.
+
+For Vercel deployment, add Vercel KV or an Upstash Redis database and set `KV_REST_API_URL` and `KV_REST_API_TOKEN`. These variables point the app at a durable Redis-compatible REST store used to remember consumed payment transaction hashes. Without them, payment consumption falls back to in-memory storage, which is acceptable for local demos but not durable across serverless cold starts or multiple serverless instances.
 
 ## Vercel Deployment
 
@@ -92,8 +95,8 @@ Arc is integrated as a configurable pay-per-analysis gate:
 1. The user connects an EVM wallet.
 2. The app switches or adds Arc Testnet.
 3. The user sends `ARC_PAYMENT_AMOUNT_USDC` native USDC to `ARC_PAYMENT_RECIPIENT`.
-4. The backend verifies the transaction through Arc RPC.
-5. The verified payment is consumed once when analysis runs.
+4. The backend verifies the transaction through Arc RPC when `ARC_PAYMENT_VERIFY_ONCHAIN=true`, or accepts the submitted transaction hash when demo mode is enabled.
+5. The payment transaction hash is consumed once when analysis runs.
 
 The remaining receipt flow is still available as the next onchain proof layer:
 

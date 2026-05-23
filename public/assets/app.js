@@ -161,7 +161,7 @@ async function payForAnalysis() {
     payerAddress: payload.payment.payer,
   };
 
-  setPaymentLoading(false, `Payment verified: ${shortHash(paymentState.txHash)}`);
+  setPaymentLoading(false, `${paymentReadyLabel()}: ${shortHash(paymentState.txHash)}`);
   renderWalletState();
 }
 
@@ -266,7 +266,7 @@ function renderWalletState() {
   walletStatus.textContent = walletState.address ? `Connected: ${shortHash(walletState.address)}` : "Wallet not connected";
   connectWalletButton.textContent = walletState.address ? "Switch Wallet" : "Connect Wallet";
   payButton.disabled = !walletState.address || paymentState.verified;
-  payButton.textContent = paymentState.verified ? "Payment Verified" : `Pay ${payment.amountUsdc} USDC`;
+  payButton.textContent = paymentState.verified ? paymentReadyLabel() : `Pay ${payment.amountUsdc} USDC`;
 
   if (paymentState.verified) {
     paymentStatus.textContent = `Ready to analyze with ${shortHash(paymentState.txHash)}`;
@@ -284,6 +284,10 @@ function setPaymentLoading(isLoading, message, isError = false) {
 function setPaymentMessage(message, isError = false) {
   paymentStatus.textContent = message;
   paymentStatus.classList.toggle("error", isError);
+}
+
+function paymentReadyLabel() {
+  return appConfig.payment?.verifyOnchain === false ? "Payment Submitted" : "Payment Verified";
 }
 
 function renderResult(result) {

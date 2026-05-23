@@ -28,11 +28,36 @@ test("createArcPaymentConfig exposes Arc payment defaults", () => {
   });
 
   assert.equal(config.required, true);
+  assert.equal(config.verifyOnchain, true);
   assert.equal(config.configured, true);
   assert.equal(config.recipient, recipient);
   assert.equal(config.amountWei, "10000000000000000");
   assert.equal(config.chainIdDecimal, 5042002);
   assert.equal(config.chainIdHex, "0x4CEF52");
+});
+
+test("ArcPaymentVerifier can run in submitted-only demo mode", async () => {
+  const verifier = new ArcPaymentVerifier({
+    config: createArcPaymentConfig({
+      ARC_PAYMENT_REQUIRED: "true",
+      ARC_PAYMENT_VERIFY_ONCHAIN: "false",
+      ARC_PAYMENT_RECIPIENT: recipient,
+      ARC_PAYMENT_AMOUNT_USDC: "0.01",
+    }),
+    usageStore: new MemoryPaymentUsageStore(),
+    fetchImpl: async () => {
+      throw new Error("should not call rpc");
+    },
+  });
+
+  const verified = await verifier.verifyPayment({ txHash, payerAddress: payer });
+  assert.equal(verified.status, "submitted");
+  assert.equal(verified.verificationMode, "submitted");
+  assert.equal(verified.payer, payer);
+  assert.equal(verified.recipient, recipient);
+
+  const consumed = await verifier.consumePayment({ txHash, payerAddress: payer });
+  assert.equal(consumed.consumed, true);
 });
 
 test("toChainIdHex converts Arc decimal chain id correctly", () => {
