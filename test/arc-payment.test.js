@@ -5,6 +5,7 @@ import {
   ArcPaymentVerifier,
   createArcPaymentConfig,
   parseNativeUsdcToWei,
+  toChainIdHex,
   toRpcQuantity,
 } from "../src/arc/payment.js";
 import { MemoryPaymentUsageStore, UpstashPaymentUsageStore } from "../src/arc/payment-store.js";
@@ -31,6 +32,11 @@ test("createArcPaymentConfig exposes Arc payment defaults", () => {
   assert.equal(config.recipient, recipient);
   assert.equal(config.amountWei, "10000000000000000");
   assert.equal(config.chainIdDecimal, 5042002);
+  assert.equal(config.chainIdHex, "0x4CEF52");
+});
+
+test("toChainIdHex converts Arc decimal chain id correctly", () => {
+  assert.equal(toChainIdHex(5042002), "0x4CEF52");
 });
 
 test("ArcPaymentVerifier verifies and consumes a native Arc USDC transfer once", async () => {

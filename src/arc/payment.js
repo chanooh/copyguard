@@ -5,7 +5,7 @@ const TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
 
 export const ARC_TESTNET = {
   chainIdDecimal: 5042002,
-  chainIdHex: "0x4CF4B2",
+  chainIdHex: "0x4CEF52",
   chainName: "Arc Testnet",
   rpcUrl: "https://rpc.testnet.arc.network",
   explorerUrl: "https://testnet.arcscan.app",
@@ -21,6 +21,7 @@ export function createArcPaymentConfig(env = process.env) {
   const amountUsdc = String(env.ARC_PAYMENT_AMOUNT_USDC || "0.01").trim();
   const amountWei = parseNativeUsdcToWei(amountUsdc);
   const required = parseBoolean(env.ARC_PAYMENT_REQUIRED, false);
+  const chainIdDecimal = Number(env.ARC_CHAIN_ID || ARC_TESTNET.chainIdDecimal);
 
   return {
     required,
@@ -28,8 +29,8 @@ export function createArcPaymentConfig(env = process.env) {
     recipient,
     amountUsdc,
     amountWei: amountWei.toString(),
-    chainIdDecimal: Number(env.ARC_CHAIN_ID || ARC_TESTNET.chainIdDecimal),
-    chainIdHex: env.ARC_CHAIN_ID_HEX || ARC_TESTNET.chainIdHex,
+    chainIdDecimal,
+    chainIdHex: env.ARC_CHAIN_ID_HEX || toChainIdHex(chainIdDecimal),
     chainName: env.ARC_CHAIN_NAME || ARC_TESTNET.chainName,
     rpcUrl: env.ARC_RPC_URL || ARC_TESTNET.rpcUrl,
     explorerUrl: env.ARC_EXPLORER_URL || ARC_TESTNET.explorerUrl,
@@ -239,6 +240,10 @@ export function parseNativeUsdcToWei(value) {
 
 export function toRpcQuantity(value) {
   return `0x${BigInt(value).toString(16)}`;
+}
+
+export function toChainIdHex(value) {
+  return `0x${Number(value).toString(16).toUpperCase()}`;
 }
 
 function parseRpcQuantity(value) {
